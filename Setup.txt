@@ -1,0 +1,163 @@
+# CPHC ANM Appium Automation — Complete Setup Guide
+
+Everything required to set up your Windows machine, connect your Android device, inspect screen elements, and run the automation script (`indexv1.js`).
+
+---
+
+## 1. Direct Downloads & Installation
+
+Install the following tools in order:
+
+| Tool | Direct Download Link | Installation Notes |
+| :--- | :--- | :--- |
+| **Node.js (LTS)** | [Download Node.js LTS (Windows .msi)](https://nodejs.org/en/download) | Keep default options checked (adds `node` & `npm` to PATH automatically). |
+| **Java JDK 17** | [Download Eclipse Temurin JDK 17 (.msi)](https://adoptium.net/temurin/releases/?version=17&os=windows&arch=x64) | Enable **"Set JAVA_HOME variable"** and **"Add to PATH"** during installation. |
+| **Android Platform Tools (ADB)** | [Download SDK Platform-Tools (Windows .zip)](https://dl.google.com/android/repository/platform-tools-latest-windows.zip) | Extract to `C:\Android\platform-tools` (or inside your Android SDK folder). |
+| **Appium Inspector** | [Download Appium Inspector (.exe)](https://github.com/appium/appium-inspector/releases) | Download `Appium-Inspector-2026.x.x-win-x64.exe` under Assets to view your phone screen and inspect element IDs. |
+
+---
+
+## 2. Configure Windows Environment Variables
+
+1. Press `Win + S`, type **Environment Variables**, and open **Edit the system environment variables**.
+2. Click **Environment Variables...** at the bottom right.
+3. Under **System variables**, click **New...** and add:
+
+| Variable Name | Variable Value (Example Path) |
+| :--- | :--- |
+| `JAVA_HOME` | `C:\Program Files\Eclipse Adoptium\jdk-17.0.x-hotspot` |
+| `ANDROID_HOME` | `C:\Android` *(Parent folder containing `platform-tools`)* |
+
+4. Select **Path** under **System variables** $\rightarrow$ click **Edit...** $\rightarrow$ click **New** and add:
+   * `%JAVA_HOME%\bin`
+   * `%ANDROID_HOME%\platform-tools`
+
+5. Click **OK** on all windows, open a **new** PowerShell / Command Prompt, and verify:
+   ```powershell
+   node -v
+   java -version
+   adb version
+   ```
+
+---
+
+## 3. Install Appium & Project Dependencies
+
+Run these commands inside your project folder (e.g., `D:\NCDAutomation`):
+
+```powershell
+# 1. Install Appium & UiAutomator2 driver globally
+npm install -g appium
+appium driver install uiautomator2
+
+# 2. Initialize project & install WebdriverIO
+npm init -y
+npm install webdriverio
+```
+
+Verify Appium and the Android driver are installed:
+```powershell
+appium driver list --installed
+```
+
+---
+
+## 4. Connect & Prepare Android Device
+
+1. On your Android phone, open **Settings $\rightarrow$ About phone** and tap **Build number** 7 times to unlock **Developer options**.
+2. Go to **Settings $\rightarrow$ System $\rightarrow$ Developer options** and enable:
+   * **USB debugging**
+   * **Install via USB** / **USB debugging (Security settings)** *(required on Xiaomi/Redmi/Oppo/Vivo devices so Appium can tap elements)*
+   * **Stay awake** *(keeps screen on while charging)*
+3. Connect the phone via USB cable and tap **Allow** on the *"Allow USB debugging?"* prompt.
+4. Verify your device is detected in PowerShell:
+   ```powershell
+   adb devices
+   ```
+   *(Expected output: `<device_id>    device`. If it says `unauthorized`, re-plug the cable and accept the prompt on your phone.)*
+
+---
+
+## 5. Appium Inspector Setup (View Phone Screen & Get Element IDs)
+
+Use **Appium Inspector** whenever you need to mirror your phone screen and find `resource-id`, `text`, or hierarchy structure for new screens.
+
+### Method A: Standalone Desktop App (Recommended)
+1. Run the downloaded `Appium-Inspector-2026.x.x-win-x64.exe` installer.
+   * *If Windows SmartScreen blocks it:* Click **More info $\rightarrow$ Run anyway** (or right-click the `.exe` $\rightarrow$ **Properties** $\rightarrow$ check **Unblock** $\rightarrow$ **OK**).
+2. Ensure `appium` is running in PowerShell (`http://0.0.0.0:4723`).
+3. Open **Appium Inspector** and enter the server connection details:
+   * **Remote Host:** `127.0.0.1`
+   * **Remote Port:** `4723`
+   * **Remote Path:** `/`
+4. Under **Desired Capabilities**, switch to the **JSON Representation** tab, paste the JSON below, and click **Start Session**:
+   ```json
+   {
+     "platformName": "Android",
+     "appium:automationName": "UiAutomator2",
+     "appium:deviceName": "AndroidDevice",
+     "appium:noReset": true,
+     "appium:dontStopAppOnReset": true
+   }
+   ```
+5. Click any field on the mirrored screen (left panel) to copy its `resource-id` or `text` from the right panel. Use the **Refresh Source (🔄)** button at the top after navigating to a new screen on your phone.
+
+### Method B: Run in Browser via Appium Plugin (No `.exe` Needed)
+1. Install the Inspector plugin:
+   ```powershell
+   appium plugin install inspector
+   ```
+2. Start Appium with the plugin enabled:
+   ```powershell
+   appium --use-plugins=inspector
+   ```
+3. Open `http://127.0.0.1:4723/inspector` in Chrome/Edge and start a session using the same JSON capabilities above.
+
+> **Important:** Always click the red **Quit Session (X)** button inside Appium Inspector before running `node indexv1.js`. Keeping an active Inspector session open locks `UiAutomator2` on the phone and causes `socket hang up` errors.
+
+---
+
+## 6. Run the Automation Script
+
+1. **Terminal 1 — Start Appium Server:**
+   ```powershell
+   appium
+   ```
+   *(Leave this terminal running.)*
+
+2. **On Your Phone:** Open the **CPHC ANM** app and navigate to the starting screen (Individual Enrollment or CBAC screen, matching your `FLOW_STEPS` flags in `indexv1.js`).
+
+3. **Terminal 2 — Run Automation:**
+   ```powershell
+   cd D:\NCDAutomation
+   node indexv1.js
+   ```
+
+---
+
+## 7. Quick Configuration Reference (`indexv1.js`)
+
+* **Toggle Individual Sections (`FLOW_STEPS`):**
+  ```javascript
+  const FLOW_STEPS = {
+      runEnrollment: true,   // Section 0: Individual Enrollment
+      runCbacPartA: true,    // Section 1: CBAC Part A - Risk Assessment
+      runCbacPartB: true,    // Section 2: CBAC Part B - Early Detection (+ Women Only)
+      runCbacPartC: true,    // Section 3: CBAC Part C - Risk Factors for COPD
+      runCbacPartD: true     // Section 4: CBAC Part D - PHQ 2 & Finish
+  };
+  ```
+* **Adjust Execution Speed (`SPEED_CONFIG`):**
+  * `waitForIdleTimeout: 10` — Delay between UI actions (`0` = fastest).
+  * `swipeSpeed: 4500` — Scroll velocity in px/sec.
+  * `postSwipeDelay: 50` — Settle time in ms after each scroll swipe.
+
+---
+
+## 8. Common Troubleshooting
+
+| Issue | Fix |
+| :--- | :--- |
+| **`UiAutomator2 instrumentation process crashed` / `socket hang up`** | Close Appium Inspector if open, then reset the server APKs on your phone:<br>`adb uninstall io.appium.uiautomator2.server`<br>`adb uninstall io.appium.uiautomator2.server.test` |
+| **Appium taps fail on Xiaomi / Realme / Vivo** | Enable **USB debugging (Security settings)** or **Disable permission monitoring** in **Developer options**. |
+| **`adb` is not recognized** | Re-check `%ANDROID_HOME%\platform-tools` in System `Path` and open a fresh terminal window. |
