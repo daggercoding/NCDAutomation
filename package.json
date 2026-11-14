@@ -12,5 +12,8 @@
   "type": "commonjs",
   "dependencies": {
     "webdriverio": "^10.1.0"
+  },
+  "devDependencies": {
+    "crypto": "^1.0.1"
   }
 }
